@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 # from typing import List
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from parser2 import mimetype
 import time
 
@@ -128,7 +128,7 @@ class Book:
         img.set("alt", f"x{image.filename}")
         img.set("style", "display:block;margin-left:auto;margin-right:auto;")
 
-    def parse_chapter(self, chapter: Chapter) -> Chapter:
+    def parse_chapter(self, vol_i, ch_i, chapter: Chapter) -> Chapter:
         with httpx.Client(timeout=10) as client:
             new_ch = chapter
             response = get_with_retry(client, new_ch.url)
@@ -176,7 +176,7 @@ class Book:
                 )
 
             print(f"[INF] Book.parse_chapter - completed - filename: {new_ch.filename}")
-            return new_ch
+            return vol_i, ch_i, new_ch
 
     def parse(self):
         with httpx.Client(timeout=10) as client:
@@ -217,14 +217,18 @@ class Book:
 
                                 self.volumes[-1:][0].chapters += [Chapter(curl, ctitle, f"chapter-{cid}.xhtml")]
 
-    def replace_chapter(self, vol_i, ch_i, ch):
-        self.volumes[vol_i].chapters[ch_i] = ch
-
     def parse_chapters(self):
-        with ProcessPoolExecutor(max_workers=8) as pool:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = []
+
             for vol_i in range(0, len(self.volumes)):
                 for ch_i in range(0, len(self.volumes[vol_i].chapters)):
-                    pool.submit(self.replace_chapter, vol_i, ch_i, self.parse_chapter(self.volumes[vol_i].chapters[ch_i]))
+                    pool.submit(self.parse_chapter, vol_i, ch_i, self.volumes[vol_i].chapters[ch_i])
+
+            for future in as_completed(futures):
+                vol_i, ch_i, new_ch = future.result()
+                self.volumes[vol_i].chapters[ch_i] = new_ch
+
 
     def save_as_epub(self, outfilename):
         ebook = epub.EpubBook()
