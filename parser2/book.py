@@ -9,6 +9,7 @@ import httpx
 from lxml import etree
 import html5_parser
 import xxhash
+import re
 
 from ebooklib import epub
 
@@ -118,6 +119,7 @@ class Book:
         image = self.download_image(img_url)
 
         if not image:
+            img.getparent().remove(img)
             return
 
         self.images[image.filehash] = image
@@ -149,6 +151,14 @@ class Book:
                         else:
                             p.getparent().remove(p)
 
+                for i in content_text.xpath('.//*'):
+                    style = i.get("style")
+                    if style is not None:
+                        style = re.sub(R'margin-left:[\s]*0cm[;]*',     R'', style)
+                        style = re.sub(R'margin-right:[\s]*0cm[;]*',    R'', style)
+                        style = re.sub(R'font-size:[\s]*[\d]*px[;]*',   R'', style)
+                        i.set("style", style)
+
                 xml_body = etree.Element("div")
                 xml_body.append(etree.fromstring("<h2>{}</h2>".format(new_ch.title)))
                 xml_body.append(content_text)
@@ -165,6 +175,7 @@ class Book:
                     # xml_declaration=True,
                 )
 
+            print(f"[INF] Book.parse_chapter - completed - filename: {new_ch.filename}")
             return new_ch
 
     def parse(self):
@@ -175,7 +186,7 @@ class Book:
                 # print(etree.tostring(root, pretty_print=True, encoding="unicode"))
 
                 self.uid = 'idtlrulate' + self.url.split('/')[-1:][0]
-                self.title = root.xpath("/html/body/div[2]/div[3]/div[1]/h1")[0].text.split(" / ")[1]
+                self.title = root.xpath("/html/body/div[2]/div[3]/div[1]/h1")[0].text.split(" / ")[-1:][0]
                 self.description = ''.join(root.xpath("/html/body/div[2]/div[3]/div[1]/div[1]/div[3]")[0].itertext())
 
                 cover_url = root.xpath('//*[@class="slick"]/div/img')[0].get("src")
@@ -200,6 +211,8 @@ class Book:
                             if len(a) > 1:
                                 curl = BASE_URL + a[0].get("href")
                                 ctitle = a[0].text
+                                ctitle = re.sub(R'[\s]*(.*)', R'\1', ctitle)
+                                ctitle = re.sub(R'[\s]{2,}',  R' ',  ctitle)
                                 cid = row.get("id").split("_")[1]
 
                                 self.volumes[-1:][0].chapters += [Chapter(curl, ctitle, f"chapter-{cid}.xhtml")]
