@@ -154,9 +154,13 @@ class Book:
                 for i in content_text.xpath('.//*'):
                     style = i.get("style")
                     if style is not None:
-                        style = re.sub(R'margin-left:[\s]*0cm[;]*',     R'', style)
-                        style = re.sub(R'margin-right:[\s]*0cm[;]*',    R'', style)
-                        style = re.sub(R'font-size:[\s]*[\d]*px[;]*',   R'', style)
+                        style = re.sub(R'margin-left:[\s]*0cm[;]*',                     R'', style)
+                        style = re.sub(R'margin-right:[\s]*0cm[;]*',                    R'', style)
+                        style = re.sub(R'text-indent:[\s]*[\d\.]*p[xt][;]*',            R'', style)
+                        style = re.sub(R'(mso-bidi-|)font-size:[\s]*[\d\.]*p[xt][;]*',  R'', style)
+                        style = re.sub(R'(mso-bidi-|mso-fareast-|)font-family:[\s]*[\w\s\'",]*[;]*', R'', style)
+                        style = re.sub(R'line-height:[\s]*[\d\.]*%[;]*',                R'', style)
+                        style = re.sub(R'(background-|)color:[\s]*(#|)[\w\d\'"-]*[;]*', R'', style)
                         i.set("style", style)
 
                 xml_body = etree.Element("div")
