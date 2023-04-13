@@ -1,4 +1,4 @@
 # RulateParser2
 Генератор epub'ов для tl.rulate
 
-В репе лежит [ebooklib](https://github.com/aerkalov/ebooklib) под лицухой AGPL 3.0
+В репе лежит либа [ebooklib](https://github.com/aerkalov/ebooklib), она, кстати, под лицухой AGPL 3.0
