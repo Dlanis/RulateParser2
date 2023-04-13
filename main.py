@@ -17,13 +17,6 @@ from parser2.book import Book
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "-j",
-        "--threads",
-        help="threads used for download (default: 8)",
-        type=int,
-        default=8,
-    )
     parser.add_argument("book_url")
 
     return parser
