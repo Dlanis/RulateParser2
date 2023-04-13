@@ -84,12 +84,12 @@ class Book:
     def print_content(self):
         print(self.title)
         for vol in self.volumes:
-            print(f"├── {vol.title}\t({vol.filename})".expandtabs(80))
+            print(f"├── {vol.title:<96}    ({vol.filename})")
             for ch in vol.chapters:
-                print(f"│   ├── {ch.title}\t({ch.filename})".expandtabs(80))
+                print(f"│   ├── {ch.title:<90}    ({ch.filename})")
 
     def download_image(self, url) -> Image:
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=10, http2=True, follow_redirects=True) as client:
             response = get_with_retry(client, url)
             if response:
                 raw = response.content
@@ -124,11 +124,7 @@ class Book:
 
         img.set("src", f"../Images/{image.filename}")
         img.set("alt", f"x{image.filename}")
-        img.set("style", "")
-
-        # add text-align
-        div = img.getparent()
-        div.set("style", "text-align: center;")
+        img.set("style", "display:block;margin-left:auto;margin-right:auto;")
 
     def parse_chapter(self, chapter: Chapter) -> Chapter:
         with httpx.Client(timeout=10) as client:
@@ -144,14 +140,18 @@ class Book:
                         images = content_text.xpath('.//img')
                         pool.map(self.img_work, images)
 
-                # cleanup & style filters
+                # cleanup
                 for p in content_text.xpath('.//p'):
-                    if not p.text:
-                        p.getparent().remove(p)
+                    if len(p) == 0:
+                        if p.text is not None:
+                            if p.text == '':
+                                p.getparent().remove(p)
+                        else:
+                            p.getparent().remove(p)
 
                 xml_body = etree.Element("div")
                 xml_body.append(etree.fromstring("<h2>{}</h2>".format(new_ch.title)))
-                xml_body.extend(list(content_text))
+                xml_body.append(content_text)
 
                 etree.indent(xml_body, space="\t")
 
@@ -196,10 +196,10 @@ class Book:
                             self.volumes += [Volume(voltitle, f"volume-{vol_i}.xhtml", generate_volume_content(voltitle))]
 
                         elif row.get("id")[0:1] == "c":
-                            btn = row.xpath("td[6]/a")
-                            if len(btn) > 0:
-                                curl = BASE_URL + btn[0].get("href")
-                                ctitle = row.xpath("td[2]/a")[0].text
+                            a = row.xpath("td/a")
+                            if len(a) > 1:
+                                curl = BASE_URL + a[0].get("href")
+                                ctitle = a[0].text
                                 cid = row.get("id").split("_")[1]
 
                                 self.volumes[-1:][0].chapters += [Chapter(curl, ctitle, f"chapter-{cid}.xhtml")]
@@ -208,7 +208,7 @@ class Book:
         self.volumes[vol_i].chapters[ch_i] = ch
 
     def parse_chapters(self):
-        with ProcessPoolExecutor(max_workers=4) as pool:
+        with ProcessPoolExecutor(max_workers=8) as pool:
             for vol_i in range(0, len(self.volumes)):
                 for ch_i in range(0, len(self.volumes[vol_i].chapters)):
                     pool.submit(self.replace_chapter, vol_i, ch_i, self.parse_chapter(self.volumes[vol_i].chapters[ch_i]))
