@@ -76,6 +76,7 @@ class Book:
     volumes: list[Volume] = []
     images: dict = {}
     uid: str = ""
+    cookies: str = {}
     cover: Image
 
     def __init__(self, url):
@@ -90,7 +91,7 @@ class Book:
                 print(f"│   ├── {ch.title:<90}    ({ch.filename})")
 
     def download_image(self, url) -> Image:
-        with httpx.Client(timeout=10, http2=True, follow_redirects=True) as client:
+        with httpx.Client(timeout=10, http2=True, follow_redirects=True, cookies=self.cookies) as client:
             response = get_with_retry(client, url)
             if response:
                 raw = response.content
@@ -129,7 +130,7 @@ class Book:
         img.set("style", "display:block;margin-left:auto;margin-right:auto;")
 
     def parse_chapter(self, vol_i, ch_i, chapter: Chapter) -> Chapter:
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=10, cookies=self.cookies) as client:
             new_ch = chapter
             response = get_with_retry(client, new_ch.url)
 
@@ -183,7 +184,7 @@ class Book:
             return vol_i, ch_i, new_ch
 
     def parse(self):
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=10, cookies=self.cookies) as client:
             response = get_with_retry(client, self.url)
             if response:
                 root = html5_parser.parse(response.content)
